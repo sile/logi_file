@@ -18,7 +18,7 @@
 %%------------------------------------------------------------------------------------------------------------------------
 %% Application Internal API
 %%------------------------------------------------------------------------------------------------------------------------
--export([start_impl/3, rotate/1]).
+-export([start_link_impl/3, rotate/1]).
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% 'logi_backend' Callback API
@@ -69,11 +69,11 @@ stop(BackendId) ->
 %% Application Internal Functions
 %%------------------------------------------------------------------------------------------------------------------------
 %% @doc logi_file_backend_supから呼び出される実際のプロセス起動関数
--spec start_impl(logi_file:backend_id(), logi_file_rotator:instance_mfargs(), logi_file_name_generator:state()) ->
+-spec start_link_impl(logi_file:backend_id(), logi_file_rotator:instance_mfargs(), logi_file_name_generator:state()) ->
                         {ok, pid()} | {error, Reason} when
       Reason :: {already_started, pid()} | term().
-start_impl(BackendId, Rotator, NameGenerator) ->
-    gen_server:start({local, BackendId}, ?MODULE, [Rotator, NameGenerator], []).
+start_link_impl(BackendId, Rotator, NameGenerator) ->
+    gen_server:start_link({local, BackendId}, ?MODULE, [Rotator, NameGenerator], []).
 
 %% @doc ログファイルローテーターがファイルをローテートするタイミングを通知するために使用する関数
 -spec rotate(pid()) -> ok.
@@ -203,7 +203,10 @@ do_rotate(State) ->
 
 -spec open_logfile(binary()) -> {ok, file:io_device()} | {error, Reason::term()}.
 open_logfile(FileName) ->
-    file:open(FileName, [append, raw, delayed_write]).
+    case filelib:ensure_dir(FileName) of
+        {error, Reason} -> {error, Reason};
+        ok              -> file:open(FileName, [append, raw, delayed_write])
+    end.
 
 -spec reopen_logfile(#state{}) -> #state{}.
 reopen_logfile(State) ->

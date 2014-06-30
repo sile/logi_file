@@ -48,5 +48,5 @@ stop_child(BackendId) ->
 init([]) ->
     Backend = logi_file_backend,
     Children =
-        [{Backend, {Backend, start_impl, []}, permanent, 5000, worker, [Backend]}],
+        [{Backend, {Backend, start_link_impl, []}, permanent, 5000, worker, [Backend]}],
     {ok, { {simple_one_for_one, 5, 10}, Children} }.
