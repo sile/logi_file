@@ -1,35 +1,30 @@
 %% @copyright 2014 Takeru Ohta <phjgt308@gmail.com>
 %%
-%% @doc Supervisor Module
+%% @doc Log Filename Generator Interface
 %% @private
--module(logi_file_sup).
-
--behaviour(supervisor).
+-module(logi_file_name_generator).
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% Exported API
 %%------------------------------------------------------------------------------------------------------------------------
--export([start_link/0]).
+-export([generate/1]).
+
+-export_type([state/0]).
 
 %%------------------------------------------------------------------------------------------------------------------------
-%% 'supervisor' Callback API
+%% Types
 %%------------------------------------------------------------------------------------------------------------------------
--export([init/1]).
+-type state() :: tuple().
+
+%%------------------------------------------------------------------------------------------------------------------------
+%% Behaviour Callbacks
+%%------------------------------------------------------------------------------------------------------------------------
+-callback generate(state()) -> {FileName::binary(), state()}.
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% Exported Functions
 %%------------------------------------------------------------------------------------------------------------------------
-%% @doc Starts root supervisor
--spec start_link() -> {ok, pid()} | {error, Reason::term()}.
-start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
-
-%%------------------------------------------------------------------------------------------------------------------------
-%% 'supervisor' Callback Functions
-%%------------------------------------------------------------------------------------------------------------------------
-%% @hidden
-init([]) ->
-    BackendSup = logi_file_backend_sup,
-    Children =
-        [{BackendSup, {BackendSup, start_link, []}, permanent, 5000, supervisor, [BackendSup]}],
-    {ok, { {one_for_one, 5, 10}, Children} }.
+%% @doc ログファイル名を生成する
+-spec generate(state()) -> {FileName::binary(), state()}.
+generate(State) ->
+    (element(1, State)):generate(State).

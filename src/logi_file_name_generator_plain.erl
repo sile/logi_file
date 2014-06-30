@@ -1,35 +1,46 @@
 %% @copyright 2014 Takeru Ohta <phjgt308@gmail.com>
 %%
-%% @doc Supervisor Module
+%% @doc Plain Log Filename Generator
 %% @private
--module(logi_file_sup).
+-module(logi_file_name_generator_plain).
 
--behaviour(supervisor).
+-behaviour(logi_file_name_generator).
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% Exported API
 %%------------------------------------------------------------------------------------------------------------------------
--export([start_link/0]).
+-export([make/1]).
+
+-export_type([state/0]).
 
 %%------------------------------------------------------------------------------------------------------------------------
-%% 'supervisor' Callback API
+%% 'logi_file_name_generator' Callback API
 %%------------------------------------------------------------------------------------------------------------------------
--export([init/1]).
+-export([generate/1]).
+
+%%------------------------------------------------------------------------------------------------------------------------
+%% Macros & Records & Types
+%%------------------------------------------------------------------------------------------------------------------------
+-define(STATE, ?MODULE).
+
+-record(?STATE,
+        {
+          filename :: binary()
+        }).
+
+-opaque state() :: #?STATE{}.
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% Exported Functions
 %%------------------------------------------------------------------------------------------------------------------------
-%% @doc Starts root supervisor
--spec start_link() -> {ok, pid()} | {error, Reason::term()}.
-start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+%% @doc インスタンスを生成する
+-spec make(file:name_all()) -> state().
+make(FileName) ->
+    #?STATE{filename = iolist_to_binary(FileName)}.
 
 %%------------------------------------------------------------------------------------------------------------------------
-%% 'supervisor' Callback Functions
+%% 'logi_file_name_generator' Callback Functions
 %%------------------------------------------------------------------------------------------------------------------------
-%% @hidden
-init([]) ->
-    BackendSup = logi_file_backend_sup,
-    Children =
-        [{BackendSup, {BackendSup, start_link, []}, permanent, 5000, supervisor, [BackendSup]}],
-    {ok, { {one_for_one, 5, 10}, Children} }.
+%% @private
+generate(State) ->
+    {State#?STATE.filename, State}.

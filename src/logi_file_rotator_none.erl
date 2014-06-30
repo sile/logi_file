@@ -1,23 +1,23 @@
 %% @copyright 2014 Takeru Ohta <phjgt308@gmail.com>
 %%
-%% @doc Application Module
+%% @doc No Rotate Policy
 %% @private
--module(logi_file_app).
-
--behaviour(application).
+-module(logi_file_rotator_none).
 
 %%------------------------------------------------------------------------------------------------------------------------
-%% 'application' Callback API
+%% Exported API
 %%------------------------------------------------------------------------------------------------------------------------
--export([start/2, stop/1]).
+-export([make_mfargs/0, start_link/1]).
 
 %%------------------------------------------------------------------------------------------------------------------------
-%% 'application' Callback Functions
+%% Exported Functions
 %%------------------------------------------------------------------------------------------------------------------------
-%% @private
-start(_StartType, _StartArgs) ->
-    logi_file_sup:start_link().
+%% @doc プロセス起動情報を返す
+-spec make_mfargs() -> logi_file_rotator:instance_mfargs().
+make_mfargs() -> {?MODULE, start_link, []}.
 
-%% @private
-stop(_State) ->
-    ok.
+%% @doc プロセスを起動する
+-spec start_link(pid()) -> {ok, pid()}.
+start_link(_ParentPid) ->
+    Pid = spawn_link(timer, sleep, [infinity]),
+    {ok, Pid}.

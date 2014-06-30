@@ -1,35 +1,37 @@
 %% @copyright 2014 Takeru Ohta <phjgt308@gmail.com>
 %%
-%% @doc Supervisor Module
+%% @doc Log Rotator Interface
 %% @private
--module(logi_file_sup).
-
--behaviour(supervisor).
+-module(logi_file_rotator).
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% Exported API
 %%------------------------------------------------------------------------------------------------------------------------
--export([start_link/0]).
+-export([
+         start_link/2,
+         stop/1
+        ]).
+
+-export_type([
+              instance_mfargs/0
+             ]).
 
 %%------------------------------------------------------------------------------------------------------------------------
-%% 'supervisor' Callback API
+%% Types
 %%------------------------------------------------------------------------------------------------------------------------
--export([init/1]).
+-type instance_mfargs() :: {module(), Function::atom(), [term()]}.
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% Exported Functions
 %%------------------------------------------------------------------------------------------------------------------------
-%% @doc Starts root supervisor
--spec start_link() -> {ok, pid()} | {error, Reason::term()}.
-start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+%% @doc ログローテートポリシーを管理するプロセスを起動する
+-spec start_link(instance_mfargs(), pid()) -> {ok, pid()} | {error, Reason::term()}.
+start_link(MFArgs, ParentPid) ->
+    {Module, Function, Args} = MFArgs,
+    apply(Module, Function, [ParentPid | Args]).
 
-%%------------------------------------------------------------------------------------------------------------------------
-%% 'supervisor' Callback Functions
-%%------------------------------------------------------------------------------------------------------------------------
-%% @hidden
-init([]) ->
-    BackendSup = logi_file_backend_sup,
-    Children =
-        [{BackendSup, {BackendSup, start_link, []}, permanent, 5000, supervisor, [BackendSup]}],
-    {ok, { {one_for_one, 5, 10}, Children} }.
+%% @doc プロセスを停止する
+-spec stop(pid()) -> ok.
+stop(Pid) ->
+    _ = exit(Pid, shutdown),
+    ok.
