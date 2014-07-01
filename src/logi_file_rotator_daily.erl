@@ -55,5 +55,6 @@ loop(State) ->
 schedule_next_rotate() ->
     End = (calendar:time_to_seconds({23, 59, 59}) + 1),
     Current = calendar:time_to_seconds(element(2, calendar:local_time())),
-    _ = erlang:send_after((End - Current) + 100, self(), rotate_notify),
+    Delta = (End - Current) * 1000,
+    _ = erlang:send_after(Delta + 100, self(), rotate_notify),
     ok.
