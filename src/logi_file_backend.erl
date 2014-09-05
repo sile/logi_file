@@ -87,7 +87,7 @@ rotate(BackendPid) ->
 -spec write(logi_backend:backend(), logi_location:location(), logi_msg_info:info(), io:format(), [term()]) -> any().
 write(Backend, Location, MsgInfo, Format, Args) ->
     %% TODO: formatterを指定可能にする
-    Msg = 
+    Msg =
         io_lib:format("~s [~s] ~p ~p ~s:~p [~s] ~s" ++ format_omitted(logi_msg_info:get_omitted_count(MsgInfo)) ++ "\n",
                       [format_timestamp(logi_msg_info:get_timestamp(MsgInfo)),
                        logi_msg_info:get_severity(MsgInfo),
@@ -96,7 +96,7 @@ write(Backend, Location, MsgInfo, Format, Args) ->
                        logi_location:get_module(Location),
                        logi_location:get_line(Location),
                        format_headers(logi_msg_info:get_headers(MsgInfo)),
-                       [io_lib:format(Format, Args)]]),
+                       [re:replace(io_lib:format(Format, Args), "\\s+", " ", [global])]]),
     MsgBin = list_to_binary(Msg),
     gen_server:cast(logi_backend:get_process(Backend), {write, MsgBin}).
 
