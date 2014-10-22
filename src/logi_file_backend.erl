@@ -34,6 +34,7 @@
 %% Macros & Records
 %%------------------------------------------------------------------------------------------------------------------------
 -define(LOGFILE_EXIISTENCE_CHECK_INTERVAL, 10 * 1000).
+-define(MAX_LOG_SIZE, 1024). % TODO: オプションで変更可能にする
 
 -record(state,
         {
@@ -97,7 +98,7 @@ write(Backend, Location, MsgInfo, Format, Args) ->
                        logi_location:get_line(Location),
                        format_headers(logi_msg_info:get_headers(MsgInfo)),
                        [re:replace(io_lib:format(Format, Args), "\\s+", " ", [global])]]),
-    MsgBin = list_to_binary(Msg),
+    MsgBin = abbrev(list_to_binary(Msg), ?MAX_LOG_SIZE, <<"...">>),
     gen_server:cast(logi_backend:get_process(Backend), {write, MsgBin}).
 
 %%------------------------------------------------------------------------------------------------------------------------
@@ -252,3 +253,13 @@ to_string(V) when is_list(V)     ->
     end;
 to_string(V) ->
     lists:flatten(io_lib:format("~w", [V])).
+
+-spec abbrev(Input::binary(), MaxLength::non_neg_integer(), Ellipsis::binary()) -> binary().
+abbrev(<<Bin/binary>>, MaxLength, <<Ellipsis/binary>>) when is_integer(MaxLength), MaxLength >= 0 ->
+    case byte_size(Bin) =< MaxLength of
+        true  -> Bin;
+        false ->
+            EllipsisSize = byte_size(Ellipsis),
+            TruncateSize = max(0, MaxLength - EllipsisSize),
+            <<(binary:part(Bin, 0, TruncateSize))/binary, Ellipsis/binary>>
+    end.
