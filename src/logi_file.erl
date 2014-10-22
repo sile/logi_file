@@ -26,7 +26,8 @@
 -type backend_options() :: [backend_option()].
 
 -type backend_option() :: {rotate, daily | {daily, calendar:time()}}
-                        | {suffix, date}.
+                        | {suffix, date | {date, Delimiter::string()}}  % default: Delimiter="."
+                        | {prefix, date | {date, Delimiter::string()}}. % default: Delimiter="."
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% Exported Functions

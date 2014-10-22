@@ -52,7 +52,7 @@
       Reason :: {already_started, pid()}.
 start(BackendId, LogFile, Options) when is_atom(BackendId), is_list(Options) ->
     Rotator       = select_logfile_rotator(Options),
-    NameGenerator = select_logfilename_generator(LogFile, Options),
+    NameGenerator = build_logfilename_generator(logi_file_name_generator_plain:make(LogFile), Options),
     case logi_file_backend_sup:start_child(BackendId, Rotator, NameGenerator) of
         {error, {already_started, Pid}} -> {error, {already_started, Pid}};
         {ok, _Pid}                      -> ok;
@@ -176,13 +176,22 @@ select_logfile_rotator(Options) ->
         _             -> error(badarg, [Options])
     end.
 
--spec select_logfilename_generator(file:name_all(), logi_file:backend_options()) -> logi_file_name_generator:state().
-select_logfilename_generator(LogFile, Options) ->
-    case proplists:get_value(suffix, Options, undefined) of
-        undefined -> logi_file_name_generator_plain:make(LogFile);
-        date      -> logi_file_name_generator_date:make(LogFile);
-        _         -> error(badarg, [LogFile, Options])
-    end.
+-spec build_logfilename_generator(logi_file_name_generator:state(), logi_file:backend_options()) ->
+                                         logi_file_name_generator:state().
+build_logfilename_generator(Parent, []) ->
+    Parent;
+build_logfilename_generator(Parent, [{suffix, date} | Options]) ->
+    build_logfilename_generator(Parent, [{suffix, {date, "."}} | Options]);
+build_logfilename_generator(Parent, [{suffix, {date, Delim}} | Options]) ->
+    This = logi_file_name_generator_date:make(Parent, suffix, Delim),
+    build_logfilename_generator(This, Options);
+build_logfilename_generator(Parent, [{prefix, date} | Options]) ->
+    build_logfilename_generator(Parent, [{prefix, {date, "."}} | Options]);
+build_logfilename_generator(Parent, [{prefix, {date, Delim}} | Options]) ->
+    This = logi_file_name_generator_date:make(Parent, prefix, Delim),
+    build_logfilename_generator(This, Options);
+build_logfilename_generator(Parent, [_ | Options]) ->
+    build_logfilename_generator(Parent, Options).
 
 -spec do_logfile_existence_check(#state{}) -> #state{}.
 do_logfile_existence_check(State0) ->
