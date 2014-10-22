@@ -25,7 +25,7 @@
 
 -type backend_options() :: [backend_option()].
 
--type backend_option() :: {rotate, daily}
+-type backend_option() :: {rotate, daily | {daily, calendar:time()}}
                         | {suffix, date}.
 
 %%------------------------------------------------------------------------------------------------------------------------

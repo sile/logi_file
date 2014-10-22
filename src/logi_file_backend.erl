@@ -169,9 +169,10 @@ schedule_file_existence_check() ->
 -spec select_logfile_rotator(logi_file:backend_options()) -> logi_file_rotator:instance_mfargs().
 select_logfile_rotator(Options) ->
     case proplists:get_value(rotate, Options, undefined) of
-        undefined -> logi_file_rotator_none:make_mfargs();
-        daily     -> logi_file_rotator_daily:make_mfargs();
-        _         -> error(badarg, [Options])
+        undefined     -> logi_file_rotator_none:make_mfargs();
+        daily         -> logi_file_rotator_daily:make_mfargs();
+        {daily, Time} -> logi_file_rotator_daily:make_mfargs(Time);
+        _             -> error(badarg, [Options])
     end.
 
 -spec select_logfilename_generator(file:name_all(), logi_file:backend_options()) -> logi_file_name_generator:state().
@@ -199,6 +200,7 @@ do_write(Msg, State) ->
 -spec do_rotate(#state{}) -> #state{}.
 do_rotate(State) ->
     {FileName, NameGenerator} = logi_file_name_generator:generate(State#state.filename_generator),
+    _ = logi:verbose("rotate log file: new_file=~s", [FileName]),
     reopen_logfile(State#state{logfilename = FileName, filename_generator = NameGenerator}).
 
 -spec open_logfile(binary()) -> {ok, file:io_device()} | {error, Reason::term()}.
