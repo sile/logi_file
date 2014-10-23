@@ -48,13 +48,14 @@ make(Parent, Place, Delimiter) ->
 %% @private
 generate(State) ->
     #?STATE{parent = Parent0, place = Place, delimiter = Delimiter} = State,
-    Now = format_now_date(),
     {BasePath, Parent1} = logi_file_name_generator:generate(Parent0),
     FilePath =
         case Place of
             suffix ->
+                Now = format_now_date(),
                 <<BasePath/binary, Delimiter/binary, Now/binary>>;
             prefix ->
+                Now = format_now_date_short(),
                 Dir = filename:dirname(BasePath),
                 Name = filename:basename(BasePath),
                 <<Dir/binary, "/", Now/binary, Delimiter/binary, Name/binary>>
@@ -68,3 +69,8 @@ generate(State) ->
 format_now_date() ->
     {{Year, Month, Day}, _} = calendar:local_time(),
     list_to_binary(io_lib:format("~4..0B~2..0B~2..0B", [Year, Month, Day])).
+
+-spec format_now_date_short() -> binary().
+format_now_date_short() ->
+    {{Year, Month, Day}, _} = calendar:local_time(),
+    list_to_binary(io_lib:format("~2..0B~2..0B~2..0B", [Year rem 100, Month, Day])).
