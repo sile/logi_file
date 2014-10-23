@@ -10,12 +10,14 @@
          start_backend/3,
          stop_backend/1,
          install/2, install/3,
+         install_opt/3, install_opt/4,
          uninstall/1, uninstall/2
         ]).
 
 -export_type([
               backend_id/0,
-              backend_option/0, backend_options/0
+              backend_option/0, backend_options/0,
+              install_opt/0, install_opts/0
              ]).
 
 %%------------------------------------------------------------------------------------------------------------------------
@@ -28,6 +30,9 @@
 -type backend_option() :: {rotate, daily | {daily, calendar:time()}}
                         | {suffix, date | {date, Delimiter::string()}}  % default: Delimiter="."
                         | {prefix, date | {date, Delimiter::string()}}. % default: Delimiter="."
+
+-type install_opts() :: [install_opt()].
+-type install_opt()  :: {formatter, logi_file_formatter:formatter()}. % default: `logi_file_formatter_default:make()'
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% Exported Functions
@@ -50,17 +55,28 @@ stop_backend(BackendId) ->
 install(ConditionSpec, BackendId) ->
     install(logi:default_logger(), ConditionSpec, BackendId).
 
+%% @equiv install_opt(Logger, ConditionSpec, BackendId, [])
+-spec install(logi:logger(), logi_condition:spec(), backend_id()) -> ok.
+install(Logger, ConditionSpec, BackendId) ->
+    install_opt(Logger, ConditionSpec, BackendId, []).
+
+%% @equiv install_opt(logi:default_logger(), ConditionSpec, BackendId, [])
+-spec install_opt(logi_condition:spec(), backend_id(), install_opts()) -> ok.
+install_opt(ConditionSpec, BackendId, Options) ->
+    install_opt(logi:default_logger(), ConditionSpec, BackendId, Options).
+
 %% @doc ファイル出力用のログバックエンドをLoggerに登録する
 %%
 %% 既に登録済みの場合は、内容が更新される.
 %%
 %% なおバックエンドを登録しても、そのバックエンドが{@link start_backend/3}を使って起動されていない場合は、
 %% ログが出力されないので注意が必要。
--spec install(logi:logger(), logi_condition:spec(), backend_id()) -> ok.
-install(Logger, ConditionSpec, BackendId) when is_atom(BackendId) ->
-    logi:set_backend(Logger, {BackendId, logi_file_backend, []}, ConditionSpec);
-install(Logger, ConditionSpec, BackendId) ->
-    error(badarg, [Logger, ConditionSpec, BackendId]).
+-spec install_opt(logi:logger(), logi_condition:spec(), backend_id(), install_opts()) -> ok.
+install_opt(Logger, ConditionSpec, BackendId, Options) when is_atom(BackendId) ->
+    Formatter = proplists:get_value(formatter, Options, logi_file_formatter_default:make()),
+    logi:set_backend(Logger, {BackendId, logi_file_backend, Formatter}, ConditionSpec);
+install_opt(Logger, ConditionSpec, BackendId, Options) ->
+    error(badarg, [Logger, ConditionSpec, BackendId, Options]).
 
 %% @equiv uninstall(logi:default_logger(), BackendId)
 -spec uninstall(backend_id()) -> ok.

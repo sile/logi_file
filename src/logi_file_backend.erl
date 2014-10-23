@@ -34,7 +34,6 @@
 %% Macros & Records
 %%------------------------------------------------------------------------------------------------------------------------
 -define(LOGFILE_EXIISTENCE_CHECK_INTERVAL, 10 * 1000).
--define(MAX_LOG_SIZE, 1024). % TODO: オプションで変更可能にする
 
 -record(state,
         {
@@ -87,19 +86,9 @@ rotate(BackendPid) ->
 %% @private
 -spec write(logi_backend:backend(), logi_location:location(), logi_msg_info:info(), io:format(), [term()]) -> any().
 write(Backend, Location, MsgInfo, Format, Args) ->
-    %% TODO: formatterを指定可能にする
-    Msg =
-        io_lib:format("~s [~s] ~p ~p ~s:~p [~s] ~s" ++ format_omitted(logi_msg_info:get_omitted_count(MsgInfo)) ++ "\n",
-                      [format_timestamp(logi_msg_info:get_timestamp(MsgInfo)),
-                       logi_msg_info:get_severity(MsgInfo),
-                       logi_location:get_node(Location),
-                       logi_location:get_process(Location),
-                       logi_location:get_module(Location),
-                       logi_location:get_line(Location),
-                       format_headers(logi_msg_info:get_headers(MsgInfo)),
-                       [re:replace(io_lib:format(Format, Args), "\\s+", " ", [global])]]),
-    MsgBin = abbrev(list_to_binary(Msg), ?MAX_LOG_SIZE, <<"...">>),
-    gen_server:cast(logi_backend:get_process(Backend), {write, MsgBin}).
+    Formatter = logi_backend:get_data(Backend), 
+    Msg = logi_file_formatter:format(Formatter, Location, MsgInfo, Format, Args),
+    gen_server:cast(logi_backend:get_process(Backend), {write, Msg}).
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% 'gen_server' Callback Functions
@@ -226,49 +215,4 @@ reopen_logfile(State) ->
     case open_logfile(State#state.logfilename) of
         {error, Reason} -> error({file_reopen_failed, [{file, State#state.logfilename}, {reason, Reason}]}, [State]);
         {ok, IoDevice}  -> State#state{logfile_io = IoDevice}
-    end.
-
-%% TODO: formatter系は共通化する
--spec format_timestamp(erlang:timestamp()) -> iodata().
-format_timestamp(Timestamp) ->
-    {_, _, Micros} = Timestamp,
-    Millis = Micros div 1000,
-    {{Year, Month, Day}, {Hour, Minute, Second}} = calendar:now_to_local_time(Timestamp),
-    io_lib:format("~4..0B-~2..0B-~2..0B ~2..0B:~2..0B:~2..0B.~3..0B",
-                  [Year, Month, Day, Hour, Minute, Second, Millis]).
-
--spec format_headers(logi:headers()) -> iodata().
-format_headers(Headers) ->
-    string:join([[atom_to_list(K),"=",to_string(V)] || {K, V} <- Headers], ",").
-
--spec format_omitted(non_neg_integer()) -> string().
-format_omitted(0) -> "";
-format_omitted(N) -> " (" ++ integer_to_list(N) ++ " omitted)".
-
--spec to_string(term()) -> string().
-to_string(V) when is_binary(V)   -> binary_to_list(V);
-to_string(V) when is_atom(V)     -> atom_to_list(V);
-to_string(V) when is_integer(V)  -> integer_to_list(V);
-to_string(V) when is_float(V)    -> float_to_list(V);
-to_string(V) when is_function(V) -> erlang:fun_to_list(V);
-to_string(V) when is_pid(V)      -> erlang:pid_to_list(V);
-to_string(V) when is_port(V)     -> erlang:port_to_list(V);
-to_string(V) when is_reference(V)-> erlang:ref_to_list(V);
-to_string(V) when is_list(V)     ->
-    IsNonNegInteger = fun (C) -> is_integer(C) andalso C >= 0 end,
-    case lists:all(IsNonNegInteger, V) of
-        true  -> V;
-        false -> lists:flatten(io_lib:format("~w", [V]))
-    end;
-to_string(V) ->
-    lists:flatten(io_lib:format("~w", [V])).
-
--spec abbrev(Input::binary(), MaxLength::non_neg_integer(), Ellipsis::binary()) -> binary().
-abbrev(<<Bin/binary>>, MaxLength, <<Ellipsis/binary>>) when is_integer(MaxLength), MaxLength >= 0 ->
-    case byte_size(Bin) =< MaxLength of
-        true  -> Bin;
-        false ->
-            EllipsisSize = byte_size(Ellipsis),
-            TruncateSize = max(0, MaxLength - EllipsisSize),
-            <<(binary:part(Bin, 0, TruncateSize))/binary, Ellipsis/binary>>
     end.
