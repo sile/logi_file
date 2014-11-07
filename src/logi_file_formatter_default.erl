@@ -50,7 +50,7 @@ format(_Formatter, Location, MsgInfo, Format, Args) ->
                          logi_location:get_line(Location),
                          format_headers(logi_msg_info:get_headers(MsgInfo)),
                          re:replace(io_lib:format(Format, Args), "\\s+", " ", [global])]),
-    abbrev(list_to_binary(Msg), ?MAX_LOG_SIZE, <<"...">>).
+    abbrev(list_to_binary(Msg), ?MAX_LOG_SIZE, <<"...\n">>).
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% Internal Functions
@@ -99,4 +99,3 @@ abbrev(<<Bin/binary>>, MaxLength, <<Ellipsis/binary>>) when is_integer(MaxLength
             TruncateSize = max(0, MaxLength - EllipsisSize),
             <<(binary:part(Bin, 0, TruncateSize))/binary, Ellipsis/binary>>
     end.
-
