@@ -9,7 +9,7 @@
 %%------------------------------------------------------------------------------------------------------------------------
 %% Exported API
 %%------------------------------------------------------------------------------------------------------------------------
--export([make/3]).
+-export([make/4]).
 
 -export_type([state/0, place/0]).
 
@@ -25,9 +25,10 @@
 
 -record(?STATE,
         {
-          parent    :: logi_file_name_generator:state(),
-          place     :: place(),
-          delimiter :: binary()
+          parent      :: logi_file_name_generator:state(),
+          place       :: place(),
+          delimiter   :: binary(),
+          rotate_time :: calendar:time()
         }).
 
 -type state() :: #?STATE{}.
@@ -38,9 +39,9 @@
 %% Exported Functions
 %%------------------------------------------------------------------------------------------------------------------------
 %% @doc インスタンスを生成する
--spec make(logi_file_name_generator:state(), place(), string()) -> state().
-make(Parent, Place, Delimiter) ->
-    #?STATE{parent = Parent, place = Place, delimiter = list_to_binary(Delimiter)}.
+-spec make(logi_file_name_generator:state(), place(), string(), calendar:time()) -> state().
+make(Parent, Place, Delimiter, RotateTime) ->
+    #?STATE{parent = Parent, place = Place, delimiter = list_to_binary(Delimiter), rotate_time = RotateTime}.
 
 %%------------------------------------------------------------------------------------------------------------------------
 %% 'logi_file_name_generator' Callback Functions
@@ -52,10 +53,10 @@ generate(State) ->
     FilePath =
         case Place of
             suffix ->
-                Now = format_now_date(),
+                Now = format_date(adjusted_now_date(State)),
                 <<BasePath/binary, Delimiter/binary, Now/binary>>;
             prefix ->
-                Now = format_now_date_short(),
+                Now = format_date_short(adjusted_now_date(State)),
                 Dir = filename:dirname(BasePath),
                 Name = filename:basename(BasePath),
                 <<Dir/binary, "/", Now/binary, Delimiter/binary, Name/binary>>
@@ -65,12 +66,17 @@ generate(State) ->
 %%------------------------------------------------------------------------------------------------------------------------
 %% Internal Functions
 %%------------------------------------------------------------------------------------------------------------------------
--spec format_now_date() -> binary().
-format_now_date() ->
-    {{Year, Month, Day}, _} = calendar:local_time(),
+-spec format_date(calendar:date()) -> binary().
+format_date({Year, Month, Day}) ->
     list_to_binary(io_lib:format("~4..0B~2..0B~2..0B", [Year, Month, Day])).
 
--spec format_now_date_short() -> binary().
-format_now_date_short() ->
-    {{Year, Month, Day}, _} = calendar:local_time(),
+-spec format_date_short(calendar:date()) -> binary().
+format_date_short({Year, Month, Day}) ->
     list_to_binary(io_lib:format("~2..0B~2..0B~2..0B", [Year rem 100, Month, Day])).
+
+-spec adjusted_now_date(#?STATE{}) -> calendar:date().
+adjusted_now_date(#?STATE{rotate_time = Time}) ->
+    Offset = calendar:time_to_seconds(Time),
+    NowSeconds = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
+    {Date, _} = calendar:gregorian_seconds_to_datetime(NowSeconds - Offset),
+    Date.

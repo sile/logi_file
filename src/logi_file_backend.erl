@@ -51,7 +51,7 @@
       Reason :: {already_started, pid()}.
 start(BackendId, LogFile, Options) when is_atom(BackendId), is_list(Options) ->
     Rotator       = select_logfile_rotator(Options),
-    NameGenerator = build_logfilename_generator(logi_file_name_generator_plain:make(LogFile), Options),
+    NameGenerator = build_logfilename_generator(logi_file_name_generator_plain:make(LogFile), Options, Options),
     case logi_file_backend_sup:start_child(BackendId, Rotator, NameGenerator) of
         {error, {already_started, Pid}} -> {error, {already_started, Pid}};
         {ok, _Pid}                      -> ok;
@@ -86,7 +86,7 @@ rotate(BackendPid) ->
 %% @private
 -spec write(logi_backend:backend(), logi_location:location(), logi_msg_info:info(), io:format(), [term()]) -> any().
 write(Backend, Location, MsgInfo, Format, Args) ->
-    Formatter = logi_backend:get_data(Backend), 
+    Formatter = logi_backend:get_data(Backend),
     Msg = logi_file_formatter:format(Formatter, Location, MsgInfo, Format, Args),
     gen_server:cast(logi_backend:get_process(Backend), {write, Msg}).
 
@@ -165,22 +165,32 @@ select_logfile_rotator(Options) ->
         _             -> error(badarg, [Options])
     end.
 
--spec build_logfilename_generator(logi_file_name_generator:state(), logi_file:backend_options()) ->
-                                         logi_file_name_generator:state().
-build_logfilename_generator(Parent, []) ->
+-spec get_logfile_rotate_time(logi_file:backend_options()) -> calendar:time().
+get_logfile_rotate_time(Options) ->
+    case proplists:get_value(rotate, Options, undefined) of
+        {daily, Time} -> Time;
+        _             -> {0, 0, 0}
+    end.
+
+-spec build_logfilename_generator(logi_file_name_generator:state(), Optoins, Optoins) ->
+                                         logi_file_name_generator:state() when
+      Optoins :: logi_file:backend_options().
+build_logfilename_generator(Parent, _Original, []) ->
     Parent;
-build_logfilename_generator(Parent, [{suffix, date} | Options]) ->
-    build_logfilename_generator(Parent, [{suffix, {date, "."}} | Options]);
-build_logfilename_generator(Parent, [{suffix, {date, Delim}} | Options]) ->
-    This = logi_file_name_generator_date:make(Parent, suffix, Delim),
-    build_logfilename_generator(This, Options);
-build_logfilename_generator(Parent, [{prefix, date} | Options]) ->
-    build_logfilename_generator(Parent, [{prefix, {date, "."}} | Options]);
-build_logfilename_generator(Parent, [{prefix, {date, Delim}} | Options]) ->
-    This = logi_file_name_generator_date:make(Parent, prefix, Delim),
-    build_logfilename_generator(This, Options);
-build_logfilename_generator(Parent, [_ | Options]) ->
-    build_logfilename_generator(Parent, Options).
+build_logfilename_generator(Parent, Original, [{suffix, date} | Options]) ->
+    build_logfilename_generator(Parent, Original, [{suffix, {date, "."}} | Options]);
+build_logfilename_generator(Parent, Original, [{suffix, {date, Delim}} | Options]) ->
+    RotateTime = get_logfile_rotate_time(Original),
+    This = logi_file_name_generator_date:make(Parent, suffix, Delim, RotateTime),
+    build_logfilename_generator(This, Original, Options);
+build_logfilename_generator(Parent, Original, [{prefix, date} | Options]) ->
+    build_logfilename_generator(Parent, Original, [{prefix, {date, "."}} | Options]);
+build_logfilename_generator(Parent, Original, [{prefix, {date, Delim}} | Options]) ->
+    RotateTime = get_logfile_rotate_time(Original),
+    This = logi_file_name_generator_date:make(Parent, prefix, Delim, RotateTime),
+    build_logfilename_generator(This, Original, Options);
+build_logfilename_generator(Parent, Original, [_ | Options]) ->
+    build_logfilename_generator(Parent, Original, Options).
 
 -spec do_logfile_existence_check(#state{}) -> #state{}.
 do_logfile_existence_check(State0) ->
