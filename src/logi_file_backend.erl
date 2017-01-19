@@ -160,6 +160,7 @@ schedule_file_existence_check() ->
 select_logfile_rotator(Options) ->
     case proplists:get_value(rotate, Options, undefined) of
         undefined     -> logi_file_rotator_none:make_mfargs();
+        hourly        -> logi_file_rotator_hourly:make_mfargs();
         daily         -> logi_file_rotator_daily:make_mfargs();
         {daily, Time} -> logi_file_rotator_daily:make_mfargs(Time);
         _             -> error(badarg, [Options])
@@ -182,6 +183,9 @@ build_logfilename_generator(Parent, Original, [{suffix, date} | Options]) ->
 build_logfilename_generator(Parent, Original, [{suffix, {date, Delim}} | Options]) ->
     RotateTime = get_logfile_rotate_time(Original),
     This = logi_file_name_generator_date:make(Parent, suffix, Delim, RotateTime),
+    build_logfilename_generator(This, Original, Options);
+build_logfilename_generator(Parent, Original, [{suffix, yyyymmdd_hh} | Options]) ->
+    This = logi_file_name_generator_yyyymmdd_hh:make(Parent),
     build_logfilename_generator(This, Original, Options);
 build_logfilename_generator(Parent, Original, [{prefix, date} | Options]) ->
     build_logfilename_generator(Parent, Original, [{prefix, {date, "."}} | Options]);
