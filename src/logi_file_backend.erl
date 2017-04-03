@@ -34,6 +34,7 @@
 %% Macros & Records
 %%------------------------------------------------------------------------------------------------------------------------
 -define(LOGFILE_EXIISTENCE_CHECK_INTERVAL, 10 * 1000).
+-define(MAX_MESSAGE_QUEUE_LENGTH, 1000).
 
 -record(state,
         {
@@ -123,8 +124,16 @@ handle_call(_Request, _From, State) ->
 
 %% @private
 handle_cast({write, Msg}, State) ->
-    ok = do_write(Msg, State),
-    {noreply, State};
+    {_, Len} = erlang:process_info(self(), message_queue_len),
+    case Len >= ?MAX_MESSAGE_QUEUE_LENGTH of
+        true  ->
+            Count = flush_write_queue(0),
+            _ = logi:warning("Message queue overflow: ~p messages are droped", [Count]),
+            {noreply, State};
+        false ->
+            ok = do_write(Msg, State),
+            {noreply, State}
+    end;
 handle_cast(rotate, State0) ->
     State1 = do_rotate(State0),
     {noreply, State1};
@@ -229,4 +238,12 @@ reopen_logfile(State) ->
     case open_logfile(State#state.logfilename) of
         {error, Reason} -> error({file_reopen_failed, [{file, State#state.logfilename}, {reason, Reason}]}, [State]);
         {ok, IoDevice}  -> State#state{logfile_io = IoDevice}
+    end.
+
+-spec flush_write_queue(non_neg_integer()) -> non_neg_integer().
+flush_write_queue(Count) ->
+    receive
+        {'$gen_cast', {write, _}} -> flush_write_queue(Count + 1)
+    after 0 ->
+            Count
     end.
