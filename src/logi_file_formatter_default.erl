@@ -50,7 +50,7 @@ format(_Formatter, Location, MsgInfo, Format, Args) ->
                          logi_location:get_function(Location),
                          logi_location:get_line(Location),
                          format_headers(logi_msg_info:get_headers(MsgInfo)),
-                         re:replace(io_lib:format(Format, Args), "\\s+", " ", [global])]),
+                         re:replace(io_lib:format(Format, Args), "\\s{2,}", " ", [global])]),
     abbrev(list_to_binary(Msg), ?MAX_LOG_SIZE, <<"...\n">>).
 
 %%------------------------------------------------------------------------------------------------------------------------
